@@ -13,6 +13,6 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
   * A useful cheatsheet for various ggplot geoms
   
   ## Lab Notes
-  * __Lab One:__ [Introduction](/lab1/lab1.html)
+  * __Lab One:__ [Introduction](http://rpubs.com/jputz/W20_lab1)
     * An introduction to objects, functions, classes, and mathematical operations. An introduction to the tidyverse dplyr functions such as filter, mutate, etc. A brief review of OLS regression.
   
