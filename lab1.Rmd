@@ -1,0 +1,392 @@
+---
+title: 'Lab 1: R Basics and the Tidyverse'
+author: "Jenni Putz"
+date: "1/10/2020"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{js, echo=FALSE}
+$(document).ready(function() {
+
+  $chunks = $('.fold');
+
+  $chunks.each(function () {
+
+    // add button to source code chunks
+    if ( $(this).hasClass('s') ) {
+      $('pre.r', this).prepend("<div class=\"showopt\">Show Code</div><br style=\"line-height:22px;\"/>");
+      $('pre.r', this).children('code').attr('class', 'folded');
+    }
+
+    // add button to output chunks
+    if ( $(this).hasClass('o') ) {
+      $('pre:not(.r)', this).has('code').prepend("<div class=\"showopt\">Show Output</div><br style=\"line-height:22px;\"/>");
+      $('pre:not(.r)', this).children('code:not(r)').addClass('folded');
+
+      // add button to plots
+      $(this).find('img').wrap('<pre class=\"plot\"></pre>');
+      $('pre.plot', this).prepend("<div class=\"showopt\">Show Plot</div><br style=\"line-height:22px;\"/>");
+      $('pre.plot', this).children('img').addClass('folded');
+
+    }
+  });
+
+  // hide all chunks when document is loaded
+  $('.folded').css('display', 'none')
+
+  // function to toggle the visibility
+  $('.showopt').click(function() {
+    var label = $(this).html();
+    if (label.indexOf("Show") >= 0) {
+      $(this).html(label.replace("Show", "Hide"));
+    } else {
+      $(this).html(label.replace("Hide", "Show"));
+    }
+    $(this).siblings('code, img').slideToggle('fast', 'swing');
+  });
+});
+```
+
+```{css, echo=FALSE}
+.showopt {
+  background-color: #004c93;
+  color: #FFFFFF; 
+  width: 100px;
+  height: 20px;
+  text-align: center;
+  vertical-align: middle !important;
+  float: right;
+  font-family: sans-serif;
+  border-radius: 8px;
+}
+
+.showopt:hover {
+    background-color: #dfe4f2;
+    color: #004c93;
+}
+
+pre.plot {
+  background-color: white !important;
+}
+```
+## R Basics
+
+### Objects
+
+Everything in R is an object and every object has a name. We use functions on the objects. An object is an assignment between a name and a value. 
+```{r}
+x <- 5
+y = 10
+```
+Notice that this saves in the global environment. Now we can use these objects to do other things. To print the object, just type the name of the object and run the line of code.
+```{r}
+x
+```
+
+### Mathematical operations
+We can use mathematical operations on our objects and we can create new objects.
+```{r}
+a <- x + y
+a
+
+b <- x*y
+b
+
+c <- y^x
+c
+
+d <- y/x
+d
+
+```
+
+There are many different types of objects and we will learn about them throughout this course. One we will use frequently is a vector. We can create a vector object using:
+```{r}
+vector1 <- c(1:10)
+vector1
+
+vector2 <- c(a, b, c, d) #notice that this one will give you a vector of the objects we just made above, not the letters!
+vector2
+```
+
+We can do mathematical operations with vectors too!
+```{r}
+vector1^2
+```
+
+All of the objects we have made so far have been numbers but objects don't have to be just numbers.
+
+```{r}
+vector3 <- c(40, "banana", "carrot", NULL)
+vector3
+```
+
+### Functions
+We have actually already used a function! c() is a function that we used to make a list of things for the vector! Functions can transform your data in many ways. We are going to use functions today to get a snapshot and summary of our data.
+
+The head() and tail() functions give us the first few items and last few items in the data. We can specify how many items we want to see by using head(object, number).
+```{r}
+head(vector1, 3) #gives the first 3 items in vector1
+tail(vector1, 3) #gives the last 3 items in vector1
+```
+
+Self check: Try creating a vector with 5 items in it and view the first 2 of them.
+
+<div class="fold s o">
+```{r}
+sample_vector <- c(1,3,5,7,9)     
+head(sample_vector, 2)
+```
+</div>
+
+We can also use functions to find summary statistics of our data.
+```{r}
+mean(vector1)
+sd(vector1) 
+median(vector1)
+summary(vector1)
+```
+
+Self check: How would we find the variance of vector1?
+
+<div class="fold s o">
+```{r}
+sd(vector1)^2
+```
+</div>
+
+
+Self check: What is the maximum of your 5 item vector?
+
+<div class="fold s o">
+```{r}
+max(sample_vector)
+summary(sample_vector)
+```
+</div>
+
+If you don't know what a function does, you can get help from R by putting a question mark in front of the function name. This brings up an R help page. Example: ?mean
+
+### Classes
+Each object in R has a class. The class can be logical, numeric, character, etc. We can check the class of something using the class() function.
+
+```{r}
+class(a)
+class(vector1)
+class(2>3)
+```
+
+What about our vector3 that has words and numbers? What do we think this class should be?
+```{r}
+class(vector3)
+vector3
+```
+
+vector3 is a class character - we can't do mathematical operations on it! Notice that even though we have a number in the vector, R has converted it to a character!
+
+
+## Tidyverse
+ R is really useful because of its ability to use packages. Pacman is a package for "package management" - it helps us load multiple packages at once. We need to load the pacman pacakge after installing it to use it. Next, we use the p_load() function to load other packages we want to use. Let's load the tidyverse.
+```{r message=F}
+install.packages("pacman", repos = "http://cran.us.r-project.org")
+library(pacman)
+p_load(tidyverse)
+```
+
+
+Tidyverse is used for data wrangling. It allows you to manipulate data frames in a rather intuitive way. Tidyverse is a huge package so today we will be focusing on functions from the dplyr package (comes with tidyverse). The main functions were are using in this class are:
+- select(): subset columns
+- filter(): subset rows on conditions
+- arrange(): sort results
+- mutate(): create new columns by using information from other columns
+- group_by() and summarize(): create summary statisitcs on grouped data
+- count(): count discrete values
+
+We are going to use a dataset that is built into the tidyverse package. Let's give it a name so we can work with it.
+```{r}
+our_data <- starwars
+```
+
+We can view data frame by typing view(our_data) or by clicking the name in the global environment. To look at only names of variables, we can use names().
+
+```{r}
+names(our_data)
+```
+
+### Select and Filter
+Let's select only the name, gender, and homeworld variables
+```{r}
+select(our_data, c(name, gender, homeworld))
+```
+Notice that this didn't save anything in our global environment! If you want to save this new dataframe, you have to give it a name! To select all columns except a certain one, use a minus sign
+
+```{r}
+select(our_data, c(-starships, -vehicles))
+```
+
+Filter the data frame to include only droids
+```{r}
+filter(our_data, species == "Droid")
+```
+
+Filter the data frame to include droids OR humans
+```{r}
+filter(our_data, species == "Droid" | species == "Human")
+```
+
+Filter the data frame to include characters taler than 100 cm and a mass over 100
+```{r}
+filter(our_data, height > 100 & mass > 100)
+```
+
+### Piping
+What if we want to do those things all in one step??? The tidyverse allows us chain functions together with %>%. The pipe connects the LHS to the RHS. (Like reading a book). Let's make a new dataframe where we select the name, height, and mass. Filter out those who are shorter than 100 cm.
+```{r}
+new_df <- our_data %>% select(name, height, mass) %>% filter(height >= 100)
+new_df
+```
+
+Self check: make a new data frame where you select all columns except gender and has characters that appear ONLY in the film "A New Hope"
+
+<div class="fold s o">
+```{r}
+example_df <- our_data %>% select(-gender) %>% filter(films == "A New Hope")
+```
+</div>
+
+
+
+
+### Arrange
+Let's arrange all of the characters by their height
+```{r}
+our_data %>% arrange(height)
+```
+
+Notice this does lowest to highest, we can do the other way too
+```{r}
+our_data %>% arrange(desc(height))
+```
+
+Self check: Arrange the characters names in alphabetical order
+
+<div class="fold s o">
+```{r}
+our_data %>% arrange(name)
+```
+</div>
+
+
+### Mutate
+Mutate creates a new variables. Let's create a new variable that measures height in inches instead of centimeters (2.54cm per inch).
+
+```{r}
+our_data %>% mutate(height_inches = height/2.54)
+```
+
+Self check: Create a new variable that is the sum of person's mass and height
+
+<div class="fold s o">
+```{r}
+our_data %>% mutate(total = height + mass)
+```
+</div>
+
+
+### Group_by and Summarize
+Using these two functions together  will group data together and can make summary statistics. Let's find the average height for each species.
+```{r}
+our_data %>% group_by(species) %>% summarize(avg_height = mean(height))
+# Notice we have NA's! We can get rid of those
+our_data %>% na.omit() %>% group_by(species) %>% summarize(avg_height = mean(height))
+```
+
+### Count
+Count the number of each species
+```{r}
+our_data %>% count(species)
+```
+
+
+## OLS Regression
+
+To do a regression in R, we use lm(). The basic steup: name <- lm(y ~ x, data = name_of_df). Let's regress height on mass.
+
+```{r}
+reg1 <- lm(height ~ mass, data = our_data)
+summary(reg1)
+```
+
+
+Let's filter out Jabba the Hutt because he is an outlier. We can filter using pipes inside our lm function.
+```{r}
+reg2 <- lm(height ~ mass, data = our_data %>% filter(species != "Hutt"))
+summary(reg2)
+```
+
+Self check: Can you interpret the coefficient? Interpret the intercept. What are the null and alternative hypotheses? Is the coefficient significant at the 5% level?
+
+<div class="fold s o">
+```{r}
+# answer: H0: beta_1 = 0, Ha: beta_1 /= 0
+# answer: For a 1 kg increase in mass, height increases by .95 cm. If a person weighs 0 kg, they would be 101 cm tall
+# answer: Since p < .05, we reject the null hypothesis at the 5% level
+```
+</div>
+
+
+## Test Your Learning
+The following questions use content learned in Lab 1. All questions refer to the starwars dataset that we used in lab.
+
+1. Use pipes to make a new data frame to include characters with blue eyes and retain only the columns of name, gender, and homeworld.
+
+<div class="fold s o">
+```{r}
+new_df <- starwars %>% filter(eye_color == "blue") %>% select(name, gender, homeworld)
+```
+</div>
+
+2. Create a new data frame from the starwars data that meets the following criteria: contains only the mass column and a new column called mass_half containing values that are half the mass values. In this mass_half column, there are no NAs and all values are less than 50. Hint: to filter out NA values use !is.na()
+
+<div class="fold s o">
+```{r}
+new_df <- starwars %>% select(mass) %>% filter(!is.na(mass)) %>% mutate(mass_half = mass/2) %>% filter(mass_half < 50)
+```
+</div>   
+
+3. Use group_by() and summarize() to find the mean, min, and max mass for each homeworld. 
+
+<div class="fold s o">
+```{r}
+df1 <- starwars %>% group_by(homeworld) %>% summarize(mean(mass))
+df2 <- starwars %>% group_by(homeworld) %>% summarize(max(mass))
+df3 <- starwars %>% group_by(homeworld) %>% summarize(min(mass))
+```
+</div>
+
+4. How many characters are female?
+
+<div class="fold s o">
+```{r}
+gender_df <- starwars %>% count(gender)
+```
+</div> 
+
+5. Run a regression of height on mass and gender. Filter out Jabba the Hutt and filter out the NAs in gender. What are the null and alternative hypotheses for the coefficient on gendermale? Interpret the coefficient on gendermale. Is this significant at the 1% level? What about the 5% level?
+    
+<div class="fold s o">
+```{r}
+reg <- lm(height ~ mass + factor(gender), data = starwars %>% filter(species != "Hutt" & !is.na(gender)))
+summary(reg)
+```
+</div>   
+
+
+
