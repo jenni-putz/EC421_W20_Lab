@@ -15,4 +15,6 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
 ## Lab Notes
 * __Lab One:__ [Introduction](http://rpubs.com/jputz/W20_lab1)
    * An introduction to objects, functions, classes, and mathematical operations. An introduction to the tidyverse dplyr functions such as filter, mutate, etc. A brief review of OLS regression.
+* __Problem Set 1 Help:__ [Code](http://rpubs.com/jputz/568130)
+   * Code that will be useful for completing problem set 1. The assignment and dataset are available on the course Canvas page.
   
