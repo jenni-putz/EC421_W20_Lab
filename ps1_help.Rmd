@@ -1,0 +1,106 @@
+---
+title: "Problem Set 1 Help"
+author: "Jenni Putz"
+date: "1/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Getting Started
+
+```{r}
+library(pacman)
+p_load(tidyverse)
+```
+
+The first thing we need to do is to read the csv file into R. We can use the read_csv() function to read in the file. Make sure to put your own file path in the quotation marks. And remember to name your data frame!
+
+```{r message=FALSE}
+job_df <- read_csv("/Users/jenniputz/Downloads/001-data.csv")
+head(job_df)
+```
+
+How would we find the dimensions of the data frame? The dim() function gives us the number of rows and columns.
+
+```{r}
+dim(job_df)
+```
+
+Let's take a look at the variables. Using names() will print the names of the variables. We can also see the first few observations of a variable using the head() function. Writing the dataframe$variable picks out a specific variable to look at in the data frame.
+```{r}
+names(job_df)
+
+head(job_df$race, 10)
+```
+## Analysis
+
+What percentage of resumes that received a callback Since callback is a dummy variable, finding the mean gives us the percentage of times that variable equals 1.
+
+```{r }
+mean(job_df$i_callback)
+```
+
+Now, let's calculate the percentage of callbacks by race. We need to filter by race then take the mean for each group.
+
+```{r echo= T, results='hide', message=F, eval=FALSE}
+filter(job_df, race == 'b')$i_callback #this gives the values of callbacks where the race variable is = b
+filter(job_df, race == 'w')$i_callback #this gives the values of callbacks where the race variable is = w
+```
+
+To find groups means we can nest the above into the mean() function.
+```{r}
+mean_b <- mean(filter(job_df, race == 'b')$i_callback)
+mean_b
+
+mean_w <- mean(filter(job_df, race == 'w')$i_callback)
+mean_w
+
+#the difference in means:
+mean_b - mean_w
+```
+
+Now we need to perform a test to see if the group means are different. Recall from previous courses the formula for a difference in means z-test:
+$$ Z = (\mu_b - \mu_w)/\sqrt{\mu_{all}(1-\mu_{all})(1/n_b + 1/n_w)} $$
+
+
+Let's calculate all these things. We already have the $\mu_b$ and $\mu_w$, the group means, from the last step. 
+
+```{r}
+mean_all <- mean(job_df$i_callback)
+
+# need the total number in each group. nrow() gives us the number of rows in the data frame
+n_b <- filter(job_df, race == 'b') %>% nrow() 
+n_w <- filter(job_df, race == 'w') %>% nrow()
+
+# now build the Z-stat
+z <- (mean_b - mean_w)/sqrt(mean_all*(1-mean_all)*(1/n_b + 1/n_w))
+
+z
+```
+
+Our z-stat is -4.03. How do we find the p-value?
+```{r}
+2*pnorm(abs(z), lower.tail = F) # multiply by 2 because it is a 2-sided test. take absolute value of z.
+```
+What are the null and alternative hypotheses? What can we conclude?
+
+Next, let's run some OLS regressions. First, let's regress i_callback on i_black. 
+
+```{r}
+reg1 <- lm(i_callback ~ i_black, data = job_df)
+summary(reg1)
+```
+
+
+Our null hypothesis for this t-test is $H_0: \beta_1 = 0$ and the alternative is $H_a: \beta_1 \neq 0$. Our coefficient on i_black is -0.032. Notice that this is the difference in means we calculated earlier. This means that on average, resumes with the implied race as African American received less callbacks than resumes with the implied race as White by about 3 percentage points. The t-stat is -4.041 with a corresponding p-value that is less than .05, so we can reject our null hypothesis at the 5% significance level.
+
+Let's try a regression with an interaction term. We can use : to make an interaction term in the regression equation.
+```{r}
+reg2 <- lm(i_callback ~ i_black + i_military + i_black:i_military, data = job_df)
+summary(reg2)
+```
+
+That's everything! Good luck - please come to office hours or email me if you have questions!
