@@ -1,0 +1,204 @@
+---
+title: 'Lab 2: Plots Using ggplot2'
+author: "Jenni Putz"
+date: "1/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+First, let's load our packages. We wil mostly be using the dplyr and ggplot2 packages and those will load as part of the tidyverse. The ggthemes package contains themes that we can add to our ggplots. The ggridges package will be used to create a pretty cool graph towards the end. 
+```{r}
+library(pacman)
+p_load(tidyverse, lubridate, ggridges, ggthemes, janitor)
+```
+
+
+For this lecture, we are using the mpg dataset that is built in the tidyverse package. It contains fuel economy data for 38 models of cars in 1999 and 2008. Let's take a look at the data. Recall, we can preview some of our data by using the ```head()``` function and can look at variable names using ```names()```.
+
+```{r}
+head(mpg, 10)
+names(mpg)
+```
+
+## Making Plots
+
+Before we start making ggplots, we should talk about ```plot()```, Base R's plotting function. The fastest way to make plots in Base R is with the ```qplot()``` function - it makes quick plots. 
+```{r}
+qplot(x = displ, y = hwy, data = mpg)
+```
+
+This is a nice and informative plot but ggplot is more user friendly and allows us to really customize our plots to make some really awesome data visualizations. The basic setup of making a ggplot requires three things: the __data__, the __aesthetic mapping__, and a __geom__. The aesthetic mappings describe how variables in the data are mapped to visual properties (aesthetics) of geoms, like which variables are on the axes, the variable to color or fill by, etc. The geoms tell R how to draw the data like points, lines, columns, etc.
+
+In general, we can make a ggplot by typing the following:
+```ggplot(data = <DATA>) + <geom_function>(mapping = aes(<MAPPING))```
+
+The way ggplot works is by adding layers. We can add a new layer with the + sign. Let's build a ggplot step by step. First, start with ```ggplot()``` and tell R what data we are using. 
+
+```{r}
+ggplot(data = mpg)
+```
+
+Why did this make a blank graph? Well, we haven't given R the aesthetic mapping yet so it doesn't know what to put on top of the base layer. Let's add the x and y variables.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy))
+```
+
+Now we have a graph with axes and gridlines but no information on the graph. To get data on the graph, we need to tell R how we want to draw the data with a geom. To make a scatterplot, we use ```geom_point()```. 
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point()
+```
+
+This looks like the plot we made earlier but with a lot of extra steps. So why did we do all this extra work to learn ggplot? Well, ggplot allows us to visualize data in ways that the base plot package does not. For example, we can color the points by a variable. We can also add themes by adding a layer to the graph. There are some themes built into the ggplot package and the ggthemes package has even more. You can also make your own custom theme!
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, color = class)) + geom_point() + theme_minimal()
+```
+
+We can also change the size of the dots by a variable using ```size```.
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, size = class)) + theme_fivethirtyeight()
+```
+
+We can facet wrap, which will make a plot for each variable we wrap by and then arrange them in a grid.
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = drv)) + 
+  facet_wrap(~ class, nrow = 2)
+```
+
+
+Of course, we can make many different types of graphs besides scatterplots using ggplot. Here is how we would fit a line through data points:
+```{r}
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv))
+```
+
+We can also combine multiple geoms by adding multiple layers.
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) +
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+```
+
+Some geoms, like boxplots, use categorical x variables.
+```{r}
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) + 
+  geom_boxplot() 
+```
+
+## Some Cool Extensions
+Now that we have some basics, let's make some cool graphs using some fun data. [Tidy Tuesday](https://github.com/rfordatascience/tidytuesday) is a weekly data science project that has a new, accessible dataset to try your tidyverse skills on. We are going to use two datasets from this github repo to make some interesting ggplots. 
+
+### Bob Ross Data
+The first dataset we are going to use is [bob ross](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-08-06). We can download the data into R by simply copying and pasting the ```read_csv()``` code found on that page. 
+```{r}
+bob_ross <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-06/bob-ross.csv")
+head(bob_ross, 10)
+```
+
+The dataframe has Bob Ross episodes and a bunch of dummy variables equal to one if that item is included in the painting for that episode. This isn't a super useful format for graphing so we need to clean it up a bit. The code below isn't important for this class but if you're curious about how I cleaned the data, it is below.
+```{r}
+bob_ross_clean <- bob_ross %>% janitor::clean_names() %>%
+  gather(element, present, -episode, -title) %>%
+  filter(present == 1) %>%
+  mutate(title = str_to_title(str_remove_all(title, '"')),
+         element = str_to_title(str_replace(element, "_", " "))) %>%
+  dplyr::select(-present) %>%
+  separate(episode, into = c("season", "episode"), sep = "E") %>% 
+  mutate(season = str_extract(season, "[:digit:]+")) %>% 
+  mutate_at(vars(season, episode), as.integer) %>%
+  arrange(season, episode)
+
+head(bob_ross_clean, 10)
+```
+
+Now our data has season, episode, title and element as variables. The element column is what we are going to be interested in - these are items that appear in the painting. Let's make a graph of the most commonly occuring elements in all of the Bob Ross paintings. To do so, we need total counts of each variable. Let's make a new dataframe.
+```{r}
+counts <- bob_ross_clean %>% count(element, sort = TRUE) %>% 
+  arrange(desc(n))
+
+head(counts, 10)
+```
+
+This ```counts``` dataframe has the elements and the total number of times that element appears, arranged greatest to least. Let's plot the top 15 items in a bar chart.
+```{r}
+plot1 <- counts %>% head(15) %>%
+  ggplot(aes(element, n)) + geom_col() #+ coord_flip()
+
+plot1
+```
+
+That is not a very pretty looking graph so let's use our ggplot skills to make it look nicer. We can make a color palette and add that to the graph. Let's also add a title and labels.
+```{r}
+my_happy_little_palette = 'deepskyblue'
+
+plot1 <- counts %>% head(15) %>%
+  ggplot(aes(element, n)) + geom_col(fill = my_happy_little_palette) + coord_flip() +
+  theme_minimal() + 
+  labs(title = "Most Popular Items in Bob Ross Paintings",
+       x = "Number",
+       y = "Item")
+plot1
+```
+
+Beautiful!
+
+### UFO Sightings Data
+
+The next dataset from the Tidy Tuesday repo contains information on global UFO sightings. You can find the information on the dataset [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-06-25).
+```{r}
+ufo_sightings <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-25/ufo_sightings.csv")
+head(ufo_sightings, 10)
+```
+
+Check out the variable names.
+```{r}
+names(ufo_sightings)
+```
+
+And let's check out the class of this date_time variable.
+```{r}
+class(ufo_sightings$date_time)
+```
+
+The ```date_time``` variable is a character. Wouldn't it be cool if we could change this to a date format and use that in our plots? This would be helpful for time series data... Luckily, we can! The ```lubridate``` package allows us to format variables as dates and times. Let's convert this variable to a date format and also filter out any NA values for the country.
+```{r}
+ufo <- ufo_sightings %>% 
+  mutate(date_time = parse_date_time(date_time, 'mdy_HM')) %>%
+  filter(country != "NA")
+
+head(ufo, 5)
+```
+
+Now we are ready to make our plot. This plot is going to use the ```ggridges``` package and examines the distribution of monthly UFO sightings by country.
+```{r}
+ufo %>% ggplot(aes(x = month(date_time), y = country, fill = country)) + geom_density_ridges() +
+  theme_minimal()
+```
+
+Because we made the ```date_time``` variable into a date format, we can also look at the hourly distribution of UFO sightings by country.
+```{r}
+ufo %>% ggplot(aes(x = hour(date_time), y = country, fill = country)) + geom_density_ridges() +
+  theme_minimal()
+```
+
+Next, let's make a time series line plot to look at the total UFO sightings over time. 
+```{r}
+ufo_total <- ufo %>% group_by(year(date_time)) %>% summarize(total = n())
+
+names(ufo_total) <- c("year", "total") #this changes the variable names
+
+ggplot(aes(x = year, y = total), data = ufo_total) + geom_line() + 
+  labs(x = "Year",
+       y = "UFO Sightings",
+       title = "Total Recorded UFO Sightings") +
+  theme_linedraw()
+```
+
+Looks like UFO sightings have drastically increased in recent years. Is it more UFOs or better data reporting? I'll let you decide...
