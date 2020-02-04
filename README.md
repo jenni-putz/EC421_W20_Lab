@@ -22,4 +22,7 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
    * Code that will be useful for completing problem set 1. The assignment and dataset are available on the course Canvas page.
 * __Lab Two:__ [Introduction to ggplot](https://rpubs.com/jputz/569469)
    * An introduction to making plots in R with the ggplot2 package. Lab notes set up the basics of ggplot and then show some more sophisticated graphs made using data from the Tidy Tuesday repo. 
+   
+* __Lab Three:__ [Heteroskedasticity](https://rpubs.com/jputz/571370)
+   * Testing for heteroskedasticity and running regressions with heteroskedastic-robust standard errors. Code covers the Goldfeld-Quant Test, Breusch-Pagan Test, and the White Test.
   
