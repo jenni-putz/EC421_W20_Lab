@@ -1,0 +1,181 @@
+---
+title: 'Lab 3: Heteroskedasticity'
+author: "Jenni Putz"
+date: "2/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+```{r}
+library(pacman)
+p_load(tidyverse, lfe, robustbase, ggthemes)
+
+df <- education %>% 
+  rename(residents = X1,
+         per_capita_income = X2,
+         young_residents = X3,
+         per_capita_exp = Y,
+         state = State)
+```
+
+
+
+## Looking for heteroskedasticity graphically
+We can make a plot to examine the relationship between our x variable and the errors. To do this, we need to run a regression, recover the residuals, then make a scatterplot. The ```resid()``` function will get the residuals from our regression. We plot the x variable on the x-axis and the residuals on the y-axis.
+
+```{r}
+reg <- lm(per_capita_exp ~ per_capita_income, data = df)
+
+errs <- resid(reg)
+
+ggplot(aes(x = per_capita_income, y = errs), data = df) + 
+  geom_point(color = "#2D708EFF") + 
+  theme_pander() + geom_hline(yintercept = 0) +
+  labs(x = "Per Capita Income", y = "Residuals")
+
+```
+
+What are we looking for here? If our errors are heteroskedastic, then the variance of our errors is changing with the x variable. There seems to be some visual evidence of this happening here - at low values of per capita income the residuals are tightly packed around zero but as we move to larger values of per capita income the residuals are more spread out. But this graph does not provide evidence of heteroskedasticity so we need to know how to formally test for this. We will cover the three tests you learned in lecture: Goldfeld-Quant, Breusch-Pagan, and White test.
+
+## Testing for Heteroskedasticity
+### Goldfeld-Quant Test
+We want to be sure that our variance isn't changing with our predictors. One way is to compare different values of our predicted variable and see how our errors are changing. The Goldfeld-Quant test does exactly that. We pick a fraction of our sample and compare the first fraction of the sample to the second fraction. We then look at the ratio of Sum Squared Error and see how far it is from 1. If the ratio is 1, then across small and large values of x, the errors are roughly the same. If the ratio is different from 1, the errors are not the same across values of x.
+ 
+If we wanted to do this by hand, we'd need to follow some steps. 6 steps in total. Note that Goldfeld-Quant only allows you to look at one varibale at a time so let's look at ```per_capita_income``` and let's compare the first 1/4 and the last 1/4 of the sample.
+
+ * __Step One:__ Order your observations by your variable of interest, in this case, let's do income. To order a variable, all we need to do is sort it, using the arrange function.
+ 
+```{r}
+df <- arrange(df, per_capita_income)
+head(df$per_capita_income)
+```
+
+ * __Step Two:__ Split the data into two groups, in appropriate sizes. We've chosen 1/4 of our dataset to be our sample size. We need to know what 1/4 of our dataset is. The ```nrow()``` function tells us the total number of observations in the data frame.
+ 
+```{r}
+n_GQ <- as.integer(nrow(df) * 1/ 4)
+
+n_GQ #this will give us the closest count that gives us the number that is 1/4 of our full sample!
+```
+
+ * __Step Three:__ Run the regression you want to estimate on the last 1/4 of the data and the first 1/4 of the data.
+ 
+```{r}
+#on the first 1/4
+lm_g1 <- lm(data = head(df, n_GQ), per_capita_exp ~ per_capita_income + residents + young_residents) 
+#on the last 1/4
+lm_g2 <- lm(data = tail(df, n_GQ), per_capita_exp ~ per_capita_income + residents + young_residents)
+```
+
+ * __Step Four:__ Record our sum of square errors so we can form our test statistic. We'll use the `sum()` function, as well as `resid()` function.
+```{r}
+e_g1 <- resid(lm_g1) 
+e_g2 <- resid(lm_g2)
+sse_g1 <- sum(e_g1 ^ 2) #now, to get SSE, we need to square the residuals, and then sum them.
+sse_g2 <- sum(e_g2 ^ 2)
+
+sse_g1
+sse_g2
+```
+
+ * __Step Five:__ Calculate the G-Q test stastistic, and compute the p-value. The GQ test is an F-test.
+```{r}
+stat_GQ <- (sse_g2 / sse_g1)
+stat_GQ
+
+#n-k degrees of freedom, with k = no. of parameters estimated
+p_GQ <- pf(q = stat_GQ, df1 = n_GQ-4, df2 = n_GQ-4, lower.tail = F) #pf gives probability from an f-dist.
+p_GQ
+```
+
+ * __Step Six:__ State the null hypothesis and draw conclusion. The null hypothesis of Goldfeld-Quant is H0: The variances of the residuals from regressions using the first 1/4 and the last 1/4 of the dataset ordered by per capita income are the same. The alternative hypothesis of Goldfeld-Quant is HA: The variances of the residuals from regressions using the first 1/4 and the last 1/4 of the dataset ordered by per capita income are different. More formally: $H_0: \sigma_1^2 = \sigma_2^2$ and $H_a: \sigma_1^2 \neq \sigma_2^2$
+
+Conclusion, can we reject H0? Yes. So we have some evidence of heteroskedasticity. Let's see the conclusions of our other tests.
+
+
+
+
+### Breusch-Pagan Test
+If you want to see if your variables are correlated with your errors, why not just run a regression? This is what the Breusch-Pagan test does. We run a regression, recover the residuals, then regress the residuals on the x variables.
+
+ * __Step One:__  Regress y on the x variables
+```{r} 
+lm_BP <- lm(data = df, per_capita_exp ~ per_capita_income + residents + young_residents)
+```
+
+* __Step Two:__ Recover residuals from our regression
+```{r}
+e_BP <- resid(lm_BP) 
+```
+
+ * __Step Three:__ Regress our squared errors (e^2) on an intercept and our explanatory variables.
+```{r}
+lm_BrPa <- lm(data = df, I(e_BP ^ 2) ~ per_capita_income + residents + young_residents)
+```
+
+ * __Step Four:__ Record R^2. We're going to call the ```r.squared``` object from within the ```lm``` summary object. We need to know how much variation in the errors is explained by the x variables.
+
+```{r}
+r2_BP <- summary(lm_BrPa)$r.squared 
+```
+
+ * __Step Five:__ Compute the Bruesch-Pagan statisic (called Langrange Multiplier) and the p-value. BP is a test with statistic of size n*R^2 and k degrees of freedom.
+
+```{r}
+LM_BP <- nrow(df) * r2_BP
+pchisq(q = LM_BP, df = 4, lower.tail = F) #this function calculates a chi-squared distribution, which is how we get our bp test probability.
+```
+
+
+ * __Step Six:__ State the null hypothesis and draw conclusion. The null hypothesis is $H_0: \beta_1 = \beta_2 = \beta_3  = 0$ where b1, b2, b3, are the coefficients of regression model. We reject the null hypothesis at the 5% significance level. 
+
+
+
+### White Test
+The white test is very similar to the Breusch-Pagan test, with a few modifications: when regressing the squared errors in the B-P test, we add interaction terms and squared terms. So the first two steps of the White test are identical to those in the Breusch-Pagan test.
+
+ * __Step One:__  Regress y on the x variables
+```{r} 
+lm_BP <- lm(data = df, per_capita_exp ~ per_capita_income + residents + young_residents)
+```
+
+
+ * __Step Two:__ Record residuals from our regression. Also, same as BP.
+```{r}
+e_WhiteTest <- resid(lm_BP)
+```
+
+ * __Step Three:__ Here is where we change things slightly. Rather than regressing e^2 on an intercept, x1, x2, ... xk alone, we need to add the interaction and square terms.
+```{r}
+lm_White <- lm(data = df, I(e_WhiteTest ^ 2) ~ per_capita_income + residents + young_residents + 
+                 per_capita_income:residents + per_capita_income:young_residents + residents:young_residents + 
+                I(per_capita_income ^ 2) + I(residents ^ 2) + I(young_residents ^ 2))
+```
+
+ * __Step Four:__ Record R^2. Back to the BP script, but with a new regression model
+```{r}
+r2_White <- summary(lm_White)$r.squared
+```
+
+ * __Step Five:__ Compute the Bruesch-Pagan statisic (called Langrange Multiplier) using this new r-squared value
+```{r}
+LM_White <- nrow(df) * r2_White 
+pchisq(q = LM_White, df = 10, lower.tail = F) 
+```
+
+The null hypothesis is: $H_0: \beta_1 = ... = \beta_9 = 0$ and the alternative hypothesis is $H_a: \text{at least one } \beta_i \neq 0$. We reject the null at the 5% level.
+
+## Dealing with heteroskedasticity
+Now that we have tested for heteroskedasticity and have some evidence that we have heteroskedastic errors, we need to know how to deal with this. We need to adjust our standard errors so that we have heteroskedastic-robust standard errors. To do this, we use ```felm()``` from the lfe package instead of ```lm()```. Then, when we summarize, we can add the robust option to get heteroskedastic-robust standard errors.
+
+```{r}
+reg_standard <- lm(data = df, per_capita_exp ~ per_capita_income + residents + young_residents)
+reg_consistent <- felm(data = df, per_capita_exp ~ per_capita_income + residents + young_residents)
+
+summary(reg_standard)
+summary(reg_consistent, robust = TRUE)
+```
