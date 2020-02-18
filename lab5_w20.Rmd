@@ -1,0 +1,250 @@
+---
+title: 'Lab 5: Functions and Simulations'
+author: "Jenni Putz"
+date: "2/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Setup
+We will be using the pacman package to load the tidyverse and ggthemes (if you want pretty themes on your graphs).
+```{r}
+library(pacman)
+p_load(tidyverse, ggthemes)
+```
+
+## Functions
+Before we talk about how to write a function in R, let's think about what functions are in general. Think back to when you first learned about functions in math - something like $f(x)= x^2$. What does this mean? The function takes some input (a number, x) and gives us an output (the square of x). Functions create a mapping that links one object to another. This doesn't *have* to be two numbers, it could be a word and a dataframe, or two words. For instance, I could come up with a function called `color labeler` and then pass it some object, which it will map to a color: `color_labeler(banana) = yellow`.
+
+We have been using functions in R this whole time (surprise!) like `mean()`, `lm()`, `plot()`, etc. In R, we can write our own functions too. Before we do so, let's think back to week one of lab and review these two key concepts:
+  - Everything in R has a `name`, and everything is an `object`
+  - Functions have `inputs` (arugments) and `outputs`
+
+### A simple function
+Let's write a function that will take some x, and spit out x^2 + 10. That is, let's write the code for $f(x)=x^2+10$. In general, to write a function we use the `function()` function and set it up like this:  `function([some_set_of_arguments]){your function code}`. The `function()` is a special operator that takes any arguments you want in the parentheses and then lets you manipulate them in any way you see fit. 
+
+```{r}
+squarePlusten = function(x){
+  #tell squarePlusten what to do. x is an input here, we can tell our function to transform our variable into
+  #something else.
+  x_squaredten = x^2+10
+  #Now, in order to make use of this value, we need our function to spit something out. 
+  #We do this with another special function, 'return()'. 
+  return(x_squaredten)
+}
+```
+
+A couple things to note:
+  - Brackets around functions lets R know where the function starts and ends. 
+  - Technically we do not need them for one line functions
+  - Return: this tells the function what it should return for us. 
+
+We don't hold onto any temporary objects created while your function runs, though the function can modify objects outside of itself. For example, if you tried to see what `x_squaredten` is equal to outside the function, you would receive an error because this object is only defined in the context of the written function.
+
+We have created a function object called `squarePlusten` so we can now use this function by calling the name and putting in the arguments. Let's try using the function to calculate it for 10.
+```{r}
+squarePlusten(10)
+```
+
+### Using sapply()
+Functions work for more than just numbers. For example, let's write a function that takes a vector, squares all the elements, and then returns a plot. So, what should our code do?
+ - Take a vector, say c(1,2,3)
+ - Square each element of the vector. Note that we will need a way to store these results. 
+ - Print out a graph with each x, y pair plotted on it
+
+We first need a set of numbers. Let's store them in a vector called x: 
+```{r}
+x =  c(1,4,9)
+```
+
+Now, we want a function to return a plot with all of the (x,x^2 = y) pairs affiliated. We can use a special function called `sapply()` which lets us perform a function a whole bunch of times. Using`sapply(some_vector,function)` will take every element in the vector and apply your function to it. 
+
+
+```{r}
+plot_sq = function(x){
+  #now we can use the sapply function as discussed above.
+  y = sapply(x, function(x) x^2)
+  #return the plot
+  return(plot(x=x,y=y))
+}
+```
+
+To call the function, we type the name and give it the arguments. Here the argument is a vector, x.
+```{r}
+plot_sq(c(1:10))
+```
+
+### For loops
+We could have made the `plot_sq` function using a for loop. A for-loop has two parts: a header specifying the iteration, and a body which is executed once per iteration. We will build an empty vector, x, then use a for loop to fill in the values. Our function is going to set x equal to 10/i.
+
+```{r}
+x=c()
+#starting our loop, we're saying that i is an object in 1-10.
+for (i in 1:10){
+  #dividing 10 by the numbers 1 through 10.
+  x[i]= 10/i
+}
+#let's look at what this makes
+x
+```
+
+We get a vector back to us. The function is taking a value i, a value that stores the iteration, then performing the operation you defined in the loop. Like a function, a for loop defines its "body" by setting the start point with a `{` and an end point with a `}`. We can loop over any object we want. Maybe we want to loop over some weird sequence, say `c(2,300,-4,6)` 
+
+```{r}
+#initialize z
+
+z = 0
+for (i in c(2,300,-4,6)) {
+  print(paste0(i, ' plus ', z, ' equals'))
+  z = z + i
+  print(z)
+}
+```
+
+Lets rewrite our function `plot_sq` with a for loop inside it.
+```{r}
+plot_sqf = function(x){
+  #initialize y:
+  y=c()
+  #start our for loop. We're looping over every object in the vector x, so we want to iterate a number of times
+  #equal to the length of x so we don't miss any.
+  for (i in 1:length(x)) {
+    #for each i in the vector i:length, update the ith value in y with:
+    y[i] = x[i]^2
+  }
+  #return the plot
+  return(plot(x=x,y=y))
+}
+
+#plot squared values between 1-10
+plot_sqf(1:10)
+```
+
+We get the same results but what is going on in this loop? The value of i does what is called "indexing", `length(x)` gives the # of rows x has, then the function assigns the value of x^2 to y for each value of i. Remember how we index arrays in R: row by column. Thus for each i=1,2.., the iterator fills row `i` in `y` with the squared element of the `ith` row of `x`. 
+
+## Simulating Time Series data
+Simulations allow us to mess around with model parameters when we know we don't need to worry about data --- because we generated it! Generally, when running a simulation you want to 'set a seed.' This forces the random draws you see to be reproducible by another researcher who is trying to replicate your work. You can set the seed to any number you'd like but setting it allows us to get the same results each time we run the function with the same parameters, otherwise different random numbers will be drawn!
+
+```{r}
+set.seed(518)
+```
+
+### Simulating an AR(1)
+We will write a function that simulates the model:
+$$y_t = \alpha_0+\alpha_1 * y_{t-1} + u_t$$ where $u_t \text~ N(0, \sigma^2)$
+
+The steps to do this are:
+  -Draw T values of u, where T is the number of periods we simulate
+  -Set some starting point for y
+  -Generate y data with a for loop, which lets us keep its time-dependent status.
+
+We set up a function that takes an initial value for y, some alphas, a standard deviation parameter and a number for our total number of observations. Think about what `y[1]` is here:  $y_1 = a_0+y_0+u_1$ What is `y[0]`? R has *no idea*. R starts *indexing* at 1. This is unusual for coding languages and can trip you up if you don't keep it in mind. So, `y[0]` is not defined. Thus, we start iterating at $T=2$.
+
+```{r}
+ts_model = function(y_init, a_0, a_1, sigma, T){
+  #our error
+  u = rnorm(T,mean = 0, sd = sigma )
+  y = c()
+  #set first observation to our provided level
+  y[1]= y_init
+  #loop through with for
+  for (i in 2:T){
+    y[i] = a_0+a_1*y[i-1]+u[i]
+  }
+  
+#let's create a dataframe, declare 3 variables. We haven't done this before, but we can use the data.frame() function to create a dataframe, where each column is separated by columns.
+ts_data = data.frame(
+    time = c(1:T), 
+    model =  y)
+
+  return(ts_data)
+}
+```
+
+
+We can call the function using its name. We told the function to return a data frame so we should get a data frame to print out. 
+```{r}
+ts_model(3, .39, .87, .04, 100)
+```
+
+Now, using ggplot, we can pass the `ts_model2()` function we made and generate a graph of the process.
+```{r}
+ggplot(aes(x = time, y = model), data = ts_model(3,.39, .87, .04, 100)) +  
+  geom_line(col = 'purple') +
+  theme_pander()
+```
+
+#### Non-stationarity
+What happens when $|a_1|>=1$?
+
+```{r}
+#make a_1 equal to 1 in ts_model2()
+ggplot(aes(x = time, y = model), data = ts_model(4,.1, 1, 10, 100)) +  
+  geom_line( col = 'purple') +
+  theme_pander()
+```
+
+Non-stationarity is also a problem when a = -1. It looks a lot different though:
+```{r}
+#make a_1 equal to -1 in ts_model2()
+ggplot(aes(x = time, y = model), data = ts_model(4,.1, -1, 10, 100)) +  
+  geom_line( col = 'purple') +
+  theme_pander()
+```
+
+
+
+### ADL Simulation
+Let's simulate an ADL(1,1) model. That means one 'lag' of y and one 'lag' of x.
+$$y_t = \beta_0 + \alpha_1y_{t-1} + \beta_1x_t + \beta_2x_{t-1} + u_t$$
+
+We need to give our function all of the variables above as parameters. That means we need an initial value of y for y_0, all of our coefficients, a mean and standard error for x, a standard error for our error term, and some timeframe of interest, T. In total, that means we need 9 different values. 
+
+```{r}
+adl11 <- function(y_0,b_0,a1,b1,b2, sigma_u,mean_x, sigma_x, T){
+  #draw values of shock, using our function parameter sigma_u
+  u = rnorm(T,mean =0, sd=sigma_u)
+  #set up y as an empty vector so we can start placing objects inside of it.
+  y =c()
+  #initialize y_0 with our user-provided y_0 parameter above
+  y[1]= y_0
+  #build X
+  x = rnorm(T,mean = mean_x, sd = sigma_x)
+  #We can use a for loop to build our set of ys
+  #recall, i is the index, and will iterate (count) over our set which here is 2 through T (which we provided)
+  for (i in 2:T){
+    #for every i in the series from 2,3,...,T-1,T, generate a y dependent on last month's y and road expenditures
+    #in the last two periods. Written out in r, where the 'i' in x[i] is calling the i'th object in vector x...
+    y[i] = b_0+a1*y[i-1]+b1*x[i] + b2*x[i-1] + u[i]
+  }
+  #now that we have y, we need to return our dataframe
+  adl_data = data.frame(
+    #create a time vector <1,2,3,...,T-1,T>
+    time =c(1:T), 
+    y =  y,
+    x = x)
+  
+  #in order to get this object BACK, let's return the created dataframe.
+  return(adl_data)
+}
+
+```
+
+
+Let's build a dataframe we can reference, using our `adl11` function we just made and plot the time series:
+
+```{r}
+adl <- adl11(y_0 = 60, b_0= 10,a1 = 5/6,b1= -1/2, b2 = 1/6, sigma_u =1,
+              mean_x = 10, sigma_x = 2.5, T = 250)
+
+#Now, we can plot this dataframe using ggplot and layers.
+ggplot(aes(x = time, y = y), data = adl) + 
+  geom_line(col = 'purple') + 
+  labs(xlab = 'Time', ylab = 'Value of Y_t') +
+  theme_pander()
+```
+
