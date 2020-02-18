@@ -25,4 +25,9 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
    
 * __Lab Three:__ [Heteroskedasticity](https://rpubs.com/jputz/571370)
    * Testing for heteroskedasticity and running regressions with heteroskedastic-robust standard errors. Code covers the Goldfeld-Quant Test, Breusch-Pagan Test, and the White Test.
+   
+* __Lab Four:__ Midterm Review
+
+* __Lab Five:__ [Functions and Time Series](https://rpubs.com/jputz/575203)
+   * Writing functions in R. Time Series simulation and plotting.
   
