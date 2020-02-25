@@ -1,0 +1,132 @@
+---
+title: 'Lab 6: Dynamic Time Series Models'
+author: "Jenni Putz"
+date: "2/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+For this lab, we will be using the `tidyverse` and the `lmtest` packages. We need the `lmtest` package to do a Wald Test. We will be using the data for Problem Set 3. 
+
+```{r}
+library(pacman)
+p_load(tidyverse, lmtest)
+
+df <- read_csv("/Users/jenniputz/Downloads/003-data.csv")
+names(df)
+```
+
+# Static Models
+A static model assumes that the impact of any given variable is only effecting the outcome today, whereas a dynamic implies that the variable impacts the outcome tomorrow. Let's estimate a static model where `price_gas` is the outcome variable and `price_coal` and `price_electricity` are the explanatory variables.
+
+$$Price_{gas, t} = \beta_0 + \beta_1 Price_{coal, t} + \beta_2 Price_{electricity, t} + u_t$$
+To estimate this model, we use our `lm()` function and run OLS.
+```{r}
+static_mod = lm(price_gas ~ price_coal + price_electricity, data = df)
+summary(static_mod)
+```
+Here, we must believe that the price of coal and the price of electricity *immediately* affects the price of gas and that the current price of gas does not depend on previous prices of coal or electricity. Static models also do not allow for a persistent effect. This doesn't seem like a very realistic way of depicting this relationship so we should instead model this using a dynamic model.
+
+# Dynamic Models
+What if we think price_gas depends on past values of coal and electricity prices, or even past values of gas prices? Then we need to estimate a dynamic model. Let's estimate a dynamic model with one lag of price_coal and one lag of price_electricity. This represents the price of coal and price of electricity one month ago. The model we are trying to estimate looks like:
+
+$$ Price_{gas, t} = \beta_0 + \beta_1 Price_{coal, t} + \beta_2 Price_{electricity, t}  + Price_{coal, t-1} + Price_{electricity, t-1}+ u_t$$
+To make the lagged terms, we can use the `lag()` function right inside our regression. We write: lag(variable, n) where n is the order of the lag, i.e. n = 1 corresponds to one period ago, n = 2 corresponds to two periods ago, and so on.
+
+```{r}
+dynamic_mod1 <- lm(price_gas ~ price_coal + price_electricity + 
+                     lag(price_coal, 1) + lag(price_electricity, 1), data = df)
+summary(dynamic_mod1)
+```
+Notice that we get quite different results in the dynamic model. Here, the price of coal and the price of electricity affects the price of gas immediately and in future periods. We can estimate the total effect of the price of coal by summing $\beta_1 + \beta_3$ and the total effect of the price of electricity by summing $\beta_2 + \beta_4$. Dynamic models with lagged explanatory variables (but not lagged outcome variables) are unbiased but inefficient.
+
+
+Next, let's try estimating a model with two-period lags. To do this, we use the `lag()` function and set n = 2. We estimate this dynamic model:
+$$ Price_{gas, t} = \beta_0 + \beta_1 Price_{coal, t} + \beta_2 Price_{electricity, t}  + Price_{coal, t-1} + Price_{electricity, t-1}+ Price_{coal, t-2} + Price_{electricity, t-2} +  u_t$$
+
+```{r}
+dynamic_mod2 <- lm(price_gas ~ price_coal + price_electricity + 
+                     lag(price_coal, 1) + lag(price_electricity, 1) +
+                     lag(price_coal, 2) + lag(price_electricity, 2), data = df)
+summary(dynamic_mod2)
+```
+
+How do we interpret the coefficeint on $Price_{electricity,t-2}$?  When the price of electricity two months ago increases by 1 dollar, this month's price of gas decreases by .08, on average, holding all else constant. This is significant at the 5% level.
+
+
+We can also add lags of our outcome variable. we do this the same way as we did with the lags of explanatory variables. Now, we are estimating the model:
+$$Price_{gas, t} = \beta_0 + \beta_1 Price_{coal, t} + \beta_2 Price_{electricity, t}  + Price_{coal, t-1} + Price_{electricity, t-1} + Price_{gas, t-1} + u_t$$
+```{r}
+dynamic_mod3 <- lm(price_gas ~ price_coal + price_electricity + 
+                     lag(price_coal, 1) + lag(price_electricity, 1) +
+                     lag(price_gas, 1), data = df)
+summary(dynamic_mod3)
+```
+One thing to note: dynamic models with lagged outcome variables are biased in OLS.
+
+
+
+# Comparing Models
+How do we decide which models are better? We can use a wald test to compare two models (this is an F-test). Let's compare `dynamic_mod1` to our static model. To do this, we want to check to see if the coefficients on the lagged variables are significant. 
+
+The `waldtest` function in R is sometimes fussy, so I am going to make new variables for the lagged terms and re-run the regression using those. Recall, we can use `mutate()` from the `tidyverse` package to create new variables in our data frame.
+
+```{r}
+df2 <- df %>% mutate(
+  lag_coal = c(lag(price_coal, 1)),
+  lag_elec = c(lag(price_electricity, 1))
+)
+```
+Now, we just run the same regression as dynamic_mod1 but use the new variables instead of `lag()`. Then we do the Wald Test.
+
+```{r}
+reg <- lm(price_gas ~ price_coal + price_electricity + lag_coal + lag_elec, data = df2)
+waldtest(reg, c("lag_coal", "lag_elec"), test = "F")
+```
+
+The Wald Test is checking to see if both of the lagged coefficients are equal to zero, i.e. $H_0: \beta_3 = \beta_4 = 0$. The alternative hypothesis is that at least one of these coefficients is not equal to zero. The p-value from the Wald Test is equal to .29 so we fail to reject the null hypothesis at 5%. Therefore, we should use the dynamic model over the static model.
+
+# Autocorrelation
+Autocorrelation, or serial correlation, occurs when our distribances are correlated over time. That means that the shock from disturbance t is related to the shocks in t-1 and t+1. For static models or dynamic models with lagged explanatory variables, autocorrelation means that we will have unbiased estimates but OLS will be inefficient because we get biased standard errors (the same issues as heteroskedasticity!). 
+
+Let's check and see if we have autocorrelation in our first dynamic model that we ran earlier. We need to get the residuals and the lag of the residuals. I think it is easiest to make these as new variables in the dataframe so that we can use them in the plots later.
+
+```{r}
+df <- df %>% mutate(e_1 = c(NA,resid(dynamic_mod1))) %>% mutate(e_lag = c(NA, lag(resid(dynamic_mod1))))
+#note we need to put an NA there because we have 1 less residuals than data points
+```
+
+First let's plot residuals over time.
+```{r}
+ggplot(data = df, aes(x = t, y = e_1)) + geom_point(color = "purple") + geom_line(color = "black")+ theme_minimal() +
+  labs(x = "Month", y = "Errors")
+```
+Visual inspection indicates that it looks like the errors are correlated with time. Let's plot the errors and the lagged errors to be sure.
+
+```{r}
+ggplot(data = df, aes(x = e_1, y = e_lag)) + geom_point(color = "purple") + geom_line(color = "black")+ theme_minimal() +
+  labs(x = "Errors in time t", y = "Errors in time t-1")
+```
+
+Looks like we have a positive relationship between the erros in time t and the errors in time t-1, indicating that we have positive autocorrelation.
+
+
+For models with lagged outcome variables, autocorrelation creates bias and inconsistency because contemporaneous exogeneity is violated. Let's check the dynamic model we did that included a lag of $Price_{gas}$.
+
+```{r}
+# create new variables for the residuals and lagged residuals
+df <- df %>% mutate(e_gas = c(NA,resid(dynamic_mod3))) %>% mutate(e_gas_lag = c(NA, lag(resid(dynamic_mod3))))
+
+ggplot(data = df, aes(x = t, y = e_gas)) + geom_point(color = "purple") + geom_line(color = "black")+ theme_minimal() +
+  labs(x = "Month", y = "Errors")
+
+ggplot(data = df, aes(x = e_gas, y = e_gas_lag)) + geom_point(color = "purple") + geom_line(color = "black")+ theme_minimal() +
+  labs(x = "Errors in time t", y = "Errors in time t-1")
+```
+
+Here, it is significantly more difficult to tell if we have autocorrelation but it looks like we have negative autocorrelation (large positives followed by large negatives and vice versa). 
+
