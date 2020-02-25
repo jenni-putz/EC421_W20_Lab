@@ -30,4 +30,7 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
 
 * __Lab Five:__ [Functions and Time Series](https://rpubs.com/jputz/575203)
    * Writing functions in R. Time Series simulation and plotting.
+   
+* __Lab Six:__ [Dynamic Models and Autocorrelation](https://rpubs.com/jputz/578140)
+   * Estimating static and dynamic time series models. We estimate models with both lagged explanatory variables and lagged outcome variables and consider the implications for OLS. Visual inspection of autocorrelation using ggplot.
   
