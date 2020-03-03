@@ -1,0 +1,135 @@
+---
+title: 'Lab Seven: Instrumental Variables'
+author: "Jenni Putz"
+date: "3/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Motivating IV
+### Intuition
+Suppose you estimate a regression of income on years of schooling:
+
+$$income_i = \beta_0+\beta_1*schooling_i+u_i$$
+
+One assumption we make for OLS to be BLUE is exogeneity, or in other words: $E[schooling|u] = 0$. 
+
+Does this seem reasonable in this case? Probably not. It is almost certain that schooling and income are both correlated with the error $u_i$, because $u_i$ contains some measure of ‘natural ability’, which we cannot observe. Further, someone with more income might choose to get more school because their parents were wealthy. Or, growing up wealthy puts more pressure on kids to go to college. This creates selection bias - the people who go to school longer are different from those who don't in unobservable ways. 
+
+In other words, if an individual has higher ability, or childhood income impacts choice of schooling it is likely that both their salary and schooling will be higher. One can see that if $E[schooling|u] \neq 0$, our estimate for $\beta_1$ will be inconsistent and biased. Recall, we can write:
+
+$$\hat{\beta_1} = \beta_1 + \frac{cov(x,u)}{var(x)}$$
+
+
+So if we think $cov(x,u)$ is NOT equal to zero, then our estimates of $\beta_1$ will be biased.
+
+IV is a tool that you can use when you want to estimate the causal effect of some variable on an outcome but it is hard to distinguish whether some coefficient you’ve estimated is simply do to a correlation with something else that has an impact on your outcome. IV attempts to separate the `exogenous` part of x and the `endogenous` part of x and uses on the exogenous part to give us unbiased estimates. 
+
+Okay, so maybe the covariance of x and u isn’t zero, that is, we have some variation in an excluded variable potentially, or a ‘two-way-street’ referred to as ‘simultaneity bias.’ But maybe, we have some other variable we can use that explains our causal variable (X) well, but does not explain our outcome (Y).
+
+To get causal impacts of education on earnings, we would need some variable that impact peoples’ schooling choices but not their income (at least, not directly). A good example: mandatory minimum schooling for highschool - some minimum amount of schooling required by the government. Now, assuming we can manipulate this new variable, we can see how differing levels of mandatory minimum schooling impacts students’ education levels, and use that change to estimate changes in income. 
+
+### Formal Definition
+An instrumental variable, $z$ for the regression $y= \beta_1x+u$ is one that satsifies the following two conditions:
+   
+    -Exogeneity - it is uncorrelated with the error, u
+    -Relevance - it is correlated with x
+    
+In other words, the instrument only impacts the y variable *through* the x variable. 
+
+## An Example
+A common instrument (made popular by Card (1995)) for schooling in the income regression is to use inidividual proximity to a college. Lets think about if this satisifies our assumptions.
+
+Is this instrument exogenous? Probably --- the only issue you might think that people that live in cities usually have higher wages than rural areas and if someone’s parents are more wealthy, then you might accidentally capture some effect from having wealthy parents. An easy fix, maybe, would be to control for metropolitan area/rural status.
+
+How about relevance? This one we can test by running a regression estimating the effect of distance on years of schooling:
+
+$$schooling_i = \alpha_0+\beta_1*distance_i+e_i$$
+
+How would you know if the distance impacts schooling? Do a t-test where $H_0: \beta_1=0$. Check the significance. You know, a p-value! If we reject $H_0$ then the instrument is relevant.
+
+## Implementation
+### Two Stage Least Squares
+The 4 steps of 2SLS:
+
+    1. Find an instrument
+    2. Argue that it is exogenous.
+    3. Stage 1. Demonstrate that it is relevant (how?).
+    4. Stage 2 regression.
+    
+This technique is called two stage least squares because we estimate two ordinary least squared regressions. Suppose you are interested in estimating:
+
+$$y_i= \beta_0+\beta_1x_i+u_i$$
+
+but you are concerned about the endogeneity of x. We could use some kind of proxy, say, z, using the following regression:
+
+$$y_i = n_0 + n_1z_i + m_i$$
+
+but then we’re worried that perhaps someone would argue we aren’t telling a good story. We really only care about X.
+
+So we can use z, if it’s a valid instrument. In our above example, z would be distance from college and x would be schooling. To implement 2SLS we do the following:
+
+*Step 1:* Regress x on z and save the predicted values of x. That is, estimate the regression:
+
+$$x_i= \alpha_0+\alpha_1z_i+e_i$$
+
+From this regression we can calculate $\hat{x}$. Note that this regression is telling us how much of $x$ is explained by the exogenous variable, $z$. Any left-over variation (the bad, endogenous stuff, plus any bits not related to $z$) are thrown into $e_i$.
+
+*Step 2:* Now, take the predicted values from stage 1 and estimate the following regression:
+
+$$y_i =c_0 + c_1\hat{x}_i +q_i$$
+
+where $q_i$ is a new error term.
+
+So if we did our job well and our instrument is really exogenous and relevant, the estimate of $c_1$ will be consistent. Note that $q_i$ is not correlated with $\hat{x}$ since this will only be the ‘part’ of the variation of $x$ that is due to $z$, which we have claimed is exogenous to $q_i$.
+
+
+### 2SLS in R
+Continuing with the college distance example, let's load some packages and data.
+```{r}
+library(pacman)
+p_load(tidyverse, AER)
+data("CollegeDistance")
+wage_data <- CollegeDistance
+```
+
+Why is running OLS bad? Well, exogeneity is violated and we get biased estimates. We can see that this is happening if we just run an OLS:
+
+```{r}
+ols_mod <- lm(wage ~ education + urban + gender + ethnicity + unemp + income, data = wage_data)
+summary(ols_mod)
+```
+
+Notice that the coefficient on education is not significant, which doesn't make a lot of sense. So we should use 2SLS instead.
+
+#### The Long Way
+We can implement both steps of the 2SLS. For step one, we regress the instrument (and some controls) on the x variable, education.
+
+```{r}
+stage_one <- lm(education~distance + urban + gender + ethnicity + unemp + income, data=wage_data)
+summary(stage_one)
+```
+
+Great. Looks like the instrument is relevant. Now, we need to predict values of x. We can use a command `fitted.values()` to return fitted values from a regression object. Let’s attach that object to our original wage_data dataframe.
+
+```{r}
+wage_data$x_hat <- fitted.values(stage_one)
+```
+
+Next, we do the second stage regression.
+```{r}
+stage_two <- lm(wage~x_hat + urban + gender + ethnicity + unemp + income, data=wage_data)
+summary(stage_two, robust = TRUE)
+```
+After estimating the equation via 2SLS, we have significance on x_hat (the causal effect of education on earnings).
+
+#### Using ivreg
+
+We can use the `ivreg()` function from the `AER` package to do this in one line of code. You separate, in a sense, your two stages with a | operator. On the left side, put your original equation. On the right side put what variables you will use to instrument. Of course, R won’t know what you’re instrumenting for, so you need to tell it with a .- before it. In our case, .-education.
+```{r}
+reg_iv <- ivreg(wage~urban + gender + ethnicity + unemp + income + education|.-education + distance, data=wage_data)
+summary(reg_iv)
+```
