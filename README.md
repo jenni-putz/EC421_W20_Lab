@@ -34,3 +34,5 @@ Here you can find lab notes and resources for Ed Rubin's EC421 Winter 2020 cours
 * __Lab Six:__ [Dynamic Models and Autocorrelation](https://rpubs.com/jputz/578140)
    * Estimating static and dynamic time series models. We estimate models with both lagged explanatory variables and lagged outcome variables and consider the implications for OLS. Visual inspection of autocorrelation using ggplot.
   
+* __Lab Seven:__ [Instrumental Variables](https://rpubs.com/jputz/580660)
+   * Introduction to the instrumental variables approach. Motivate IV with an example and introducing 2SLS. We then implement 2SLS in R.
