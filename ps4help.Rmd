@@ -1,0 +1,57 @@
+---
+title: "Problem Set 4 Help"
+author: "Jenni Putz"
+date: "3/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+```{r}
+library(pacman)
+p_load(tidyverse, lmtest)
+
+df <- read_csv("/Users/jenniputz/Downloads/004-data.csv")
+```
+
+## Testing for Autocorrelation
+
+```{r}
+reg <- lm(price_coal ~ lag(price_coal, 1) + lag(price_coal, 2) + lag(price_coal, 3) + 
+            price_gas + lag(price_gas, 1) + lag(price_gas, 2) + lag(price_gas, 3), data = df)
+summary(reg)
+```
+
+Next, get the residuals - use 3 NAs because we have 3rd order lags.
+
+```{r}
+df$e <- c(NA, NA, NA, residuals(reg))
+```
+
+Next run the Breusch-Godfrey test. We will check for third-order autocorrelation.
+
+```{r}
+bg_reg <- lm(e ~ price_coal + lag(price_coal, 1) + lag(price_coal, 2) + lag(price_coal, 3) + 
+            price_gas + lag(price_gas, 1) + lag(price_gas, 2) + lag(price_gas, 3) +
+            lag(e, 1) + lag(e, 2) + lag(e, 3), data = df)
+
+summary(bg_reg)
+```
+
+
+We dont want the lag(e, n) coefficients to be statistically significant because then there is a relationship between the lagged residuals and the residuals (this is autocorrelation!). Can check it with the `waldtest` function we used in lab.
+
+```{r}
+p_load(lmtest)
+#waldtest(bg_reg, c("lag(e, 1)", "lag(e, 2)", "lag(e, 3)"))
+
+# NOTE: if the waldtest function doesn't work for you (like it didn't for me), try using this one from the survey package:
+p_load(survey)
+regTermTest(bg_reg, c("lag(e, 1)", "lag(e, 2)", "lag(e, 3)"), null=NULL,df=NULL, method=c("Wald"))
+# you can find the p-value in the bottom right corner of this output
+```
+
+Remember: $H_0: r_1 = r_2 = r_3 = 0$ so we reject the null hypotheis and conclude that at least one of the coefficients on the lagged residuals is not equal to zero.
